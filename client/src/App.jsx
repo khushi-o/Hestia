@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import Invoices from "./pages/Invoices";
 import Clients from "./pages/Clients";
+import Messages from "./pages/Messages";
 import useAuthStore from "./store/authStore";
 
 const ProtectedRoute = ({ children }) => {
@@ -23,6 +24,7 @@ const App = () => {
         <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
