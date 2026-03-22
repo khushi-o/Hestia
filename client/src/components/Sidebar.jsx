@@ -9,6 +9,7 @@ const NAV = [
   ["Invoices",  "📄", "/invoices"],
   ["Messages",  "💬", "/messages"],
   ["Files",     "📎", "/files"],
+  ["Settings", "⚙️", "/profile"],
 ];
 
 const Sidebar = () => {

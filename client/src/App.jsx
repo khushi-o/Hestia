@@ -6,6 +6,7 @@ import Projects from "./pages/Projects";
 import Invoices from "./pages/Invoices";
 import Clients from "./pages/Clients";
 import Messages from "./pages/Messages";
+import Profile from "./pages/Profile";
 import useAuthStore from "./store/authStore";
 import Files from "./pages/Files";
 
@@ -26,6 +27,7 @@ const App = () => {
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/files" element={<ProtectedRoute><Files /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
