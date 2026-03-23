@@ -235,8 +235,8 @@ const Sidebar = () => {
           <img src="/favicon.svg" alt="" width={32} height={32} style={s.logoMark} />
           {!collapsed && (
             <div style={s.logoText}>
-              <span style={{ color: a.color }}>Client</span>
-              <span style={{ color: m.text }}>Flow</span>
+              <span style={{ color: a.color }}>Hes</span>
+              <span style={{ color: m.text }}>tia</span>
             </div>
           )}
         </div>
