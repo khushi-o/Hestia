@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { authWriteLimiter } = require("../middleware/rateLimit.middleware");
 const { register, login } = require("../controllers/auth.controller");
 const { protect } = require("../middleware/auth.middleware");
 const Project = require("../models/project.model");
@@ -80,8 +81,8 @@ async function metricsForRange(owner, rangeStart, rangeEnd) {
   };
 }
 
-router.post("/register", register);
-router.post("/login", login);
+router.post("/register", authWriteLimiter, register);
+router.post("/login", authWriteLimiter, login);
 
 // Stats — optional `from` & `to` (ISO dates) for dashboard range filter + charts
 router.get("/stats", protect, async (req, res) => {

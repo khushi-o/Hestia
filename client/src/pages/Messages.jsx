@@ -8,10 +8,9 @@ import Layout from "../components/Layout";
 import EmptyState from "../components/EmptyState";
 import { getSocketUrl } from "../config/env.js";
 
-const socket = io(getSocketUrl());
-
 const Messages = () => {
   const user   = useAuthStore((s) => s.user);
+  const token  = useAuthStore((s) => s.token);
   const accent = useAuthStore((s) => s.accent);
   const mode   = useAuthStore((s) => s.mode);
   const navigate = useNavigate();
@@ -21,6 +20,9 @@ const Messages = () => {
   const [text, setText]                       = useState("");
   const [loading, setLoading]                 = useState(false);
   const bottomRef = useRef(null);
+  const socketRef = useRef(null);
+  const joinedRoomRef = useRef(null);
+  const selectedProjectRef = useRef(null);
 
   const a = accents[accent];
   const m = modes[mode];
@@ -28,11 +30,37 @@ const Messages = () => {
   useEffect(() => { fetchProjects(); }, []);
 
   useEffect(() => {
+    selectedProjectRef.current = selectedProject;
+  }, [selectedProject]);
+
+  useEffect(() => {
+    if (!token) return;
+    const socket = io(getSocketUrl(), { auth: { token } });
+    socketRef.current = socket;
+
+    const joinSelectedRoom = () => {
+      const sp = selectedProjectRef.current;
+      if (!sp) return;
+      socket.emit("join_project", sp._id, (res) => {
+        if (res?.ok) joinedRoomRef.current = sp._id;
+      });
+    };
+
+    socket.on("connect", joinSelectedRoom);
     socket.on("receive_message", (msg) => {
+      const sp = selectedProjectRef.current;
+      const pid = msg.projectId != null ? String(msg.projectId) : null;
+      if (!sp || !pid || pid !== String(sp._id)) return;
       setMessages((prev) => [...prev, msg]);
     });
-    return () => socket.off("receive_message");
-  }, []);
+    return () => {
+      socket.off("connect", joinSelectedRoom);
+      socket.off("receive_message");
+      socket.disconnect();
+      socketRef.current = null;
+      joinedRoomRef.current = null;
+    };
+  }, [token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,9 +74,18 @@ const Messages = () => {
   };
 
   const selectProject = async (project) => {
+    const sock = socketRef.current;
+    if (sock && joinedRoomRef.current) {
+      sock.leave(String(joinedRoomRef.current));
+      joinedRoomRef.current = null;
+    }
     setSelectedProject(project);
     setLoading(true);
-    socket.emit("join_project", project._id);
+    if (sock) {
+      sock.emit("join_project", project._id, (res) => {
+        if (res?.ok) joinedRoomRef.current = project._id;
+      });
+    }
     try {
       const res = await API.get(`/messages/${project._id}`);
       setMessages(res.data);
@@ -65,7 +102,7 @@ const Messages = () => {
       sender: user?._id,
       createdAt: new Date().toISOString(),
     };
-    socket.emit("send_message", msg);
+    socketRef.current?.emit("send_message", msg);
     try {
       await API.post(`/messages/${selectedProject._id}`, { text: text.trim() });
     } catch (err) { console.error(err); }

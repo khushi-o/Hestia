@@ -2,34 +2,48 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../models/message.model");
 const { protect } = require("../middleware/auth.middleware");
+const { requireProjectOwner } = require("../middleware/projectAccess.middleware");
 const Notification = require("../models/notification.model");
 const Project = require("../models/project.model");
+
+const MAX_MESSAGE_LEN = 5000;
+
 router.use(protect);
 
-// Get messages for a project
-router.get("/:projectId", async (req, res) => {
+router.get("/:projectId", requireProjectOwner, async (req, res) => {
   try {
     const messages = await Message.find({ project: req.params.projectId })
       .sort({ createdAt: 1 })
       .limit(100);
     res.json(messages);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const msg =
+      process.env.NODE_ENV === "production"
+        ? "Something went wrong"
+        : error.message;
+    res.status(500).json({ message: msg });
   }
 });
 
-// Post a message
-
-router.post("/:projectId", async (req, res) => {
+router.post("/:projectId", requireProjectOwner, async (req, res) => {
   try {
+    const text = (req.body.text ?? "").trim();
+    if (!text) {
+      return res.status(400).json({ message: "Message text is required" });
+    }
+    if (text.length > MAX_MESSAGE_LEN) {
+      return res.status(400).json({
+        message: `Message must be at most ${MAX_MESSAGE_LEN} characters`,
+      });
+    }
+
     const message = await Message.create({
       project: req.params.projectId,
       sender: req.user._id,
       senderName: req.user.name,
-      text: req.body.text,
+      text,
     });
 
-    // Create notification for project owner
     const project = await Project.findById(req.params.projectId);
     if (project && project.owner.toString() !== req.user._id.toString()) {
       await Notification.create({
@@ -43,7 +57,11 @@ router.post("/:projectId", async (req, res) => {
 
     res.status(201).json(message);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const msg =
+      process.env.NODE_ENV === "production"
+        ? "Something went wrong"
+        : error.message;
+    res.status(500).json({ message: msg });
   }
 });
 

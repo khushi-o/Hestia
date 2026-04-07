@@ -21,4 +21,6 @@ const clientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+clientSchema.index({ owner: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Client", clientSchema);

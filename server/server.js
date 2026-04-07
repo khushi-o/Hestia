@@ -14,14 +14,22 @@ async function start() {
   const { Server } = require("socket.io");
   const { getCorsOrigins } = require("./config/cors.config.js");
   const path = require("path");
+  const mongoose = require("mongoose");
+  const Project = require("./models/project.model");
+  const { socketAuthMiddleware } = require("./middleware/socketAuth.middleware.js");
 
   const corsOrigins = getCorsOrigins();
 
   const app = express();
+  // Required for express-rate-limit behind Railway / Vercel-style reverse proxies
+  app.set("trust proxy", 1);
+
   const server = http.createServer(app);
   const io = new Server(server, {
     cors: { origin: corsOrigins, methods: ["GET", "POST"] },
   });
+
+  io.use(socketAuthMiddleware);
 
   app.use(cors({ origin: corsOrigins }));
   app.use(express.json());
@@ -34,15 +42,32 @@ async function start() {
   app.use("/api/files", require("./routes/file.routes"));
   app.use("/api/notifications", require("./routes/notification.routes"));
   app.use("/api/search", require("./routes/search.routes"));
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  // Uploads are served only via GET /api/files/download/:fileId (auth + owner check), not public static.
+
+  async function userOwnsProject(userId, projectId) {
+    if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+      return false;
+    }
+    const p = await Project.findOne({ _id: projectId, owner: userId });
+    return !!p;
+  }
 
   io.on("connection", (socket) => {
-    socket.on("join_project", (projectId) => {
-      socket.join(projectId);
+    socket.on("join_project", async (projectId, cb) => {
+      const ok = await userOwnsProject(socket.user._id, projectId);
+      if (ok) socket.join(String(projectId));
+      if (typeof cb === "function") cb({ ok });
     });
 
-    socket.on("send_message", (data) => {
-      io.to(data.projectId).emit("receive_message", data);
+    socket.on("send_message", async (data, cb) => {
+      const projectId = data?.projectId;
+      const ok = await userOwnsProject(socket.user._id, projectId);
+      if (!ok) {
+        if (typeof cb === "function") cb({ ok: false });
+        return;
+      }
+      io.to(String(projectId)).emit("receive_message", data);
+      if (typeof cb === "function") cb({ ok: true });
     });
 
     socket.on("disconnect", () => {});

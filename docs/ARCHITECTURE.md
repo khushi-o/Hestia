@@ -71,7 +71,7 @@ Hestia uses a **three-tier** pattern:
 
 | Item | Role |
 |------|------|
-| `server.js` | HTTP server, Express, Socket.io, CORS from **`CLIENT_ORIGIN`**, static `/uploads` |
+| `server.js` | HTTP server, Express, Socket.io (JWT on handshake), CORS from **`CLIENT_ORIGIN`**; file bytes via **`/api/files/download`** only |
 | `config/db.js` | Mongo connection |
 | `config/cors.config.js` | Parses `CLIENT_ORIGIN` for allowed origins |
 | `models/` | Mongoose schemas |

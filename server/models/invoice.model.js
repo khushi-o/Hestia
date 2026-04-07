@@ -32,4 +32,6 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+invoiceSchema.index({ owner: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Invoice", invoiceSchema);
