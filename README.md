@@ -131,6 +131,8 @@ npm run dev
 
 `client/vercel.json` includes SPA rewrites so client-side routes work on refresh.
 
+**Sockets (messages, etc.):** Set **`CLIENT_ORIGIN`** on the API to your exact frontend origin(s), e.g. `https://your-app.vercel.app` (no trailing slash). If Socket.io fails to connect, check that value and that **`VITE_SOCKET_URL`** (optional) is the API origin only, e.g. `https://your-service.up.railway.app` — not the `/api` path.
+
 ## Roadmap: dual AI layer (next epic)
 
 Planned enhancements on top of this product surface:

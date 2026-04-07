@@ -35,7 +35,15 @@ const Profile = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await API.get("/auth/stats");
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - 29);
+      const res = await API.get("/auth/stats", {
+        params: {
+          from: from.toISOString().slice(0, 10),
+          to: to.toISOString().slice(0, 10),
+        },
+      });
       setStats(res.data);
     } catch (err) { console.error(err); }
   };

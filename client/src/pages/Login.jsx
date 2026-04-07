@@ -41,12 +41,16 @@ const Login = () => {
       login(res.data);
       navigate("/dashboard");
     } catch (err) {
+      const status = err.response?.status;
       const raw = err.response?.data?.message || "";
       const msg = String(raw).trim() || "Login failed";
       const email = (data.email || "").trim().toLowerCase();
       const isDemoEmail =
         email === "demo@hestia.app" || email === "client@hestia.app";
-      if (msg === "Invalid credentials") {
+      const unauthorized =
+        status === 401 ||
+        (status === 400 && msg === "Invalid credentials");
+      if (unauthorized && msg === "Invalid credentials") {
         if (showDemoShortcuts && isDemoEmail) {
           setLoginError(
             "That preview account isn’t available on this site. Create an account below, or check your email and password."

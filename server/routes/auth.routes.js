@@ -138,20 +138,27 @@ router.get("/stats", protect, async (req, res) => {
     const { from, to } = req.query;
 
     if (req.user.role === "client") {
+      let start;
+      let end;
       if (!from || !to) {
-        return res.status(400).json({ message: "from and to are required" });
-      }
-      const start = new Date(from);
-      const end = new Date(to);
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        return res.status(400).json({ message: "Invalid from/to dates" });
-      }
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      if (start > end) {
-        return res
-          .status(400)
-          .json({ message: "from must be before or equal to to" });
+        end = new Date();
+        start = new Date();
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+      } else {
+        start = new Date(from);
+        end = new Date(to);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+          return res.status(400).json({ message: "Invalid from/to dates" });
+        }
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        if (start > end) {
+          return res
+            .status(400)
+            .json({ message: "from must be before or equal to to" });
+        }
       }
       const prev = previousPeriodBounds(start, end);
       const [current, previousMetrics, recentProjects] = await Promise.all([
