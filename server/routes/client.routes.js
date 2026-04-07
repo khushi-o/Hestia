@@ -7,8 +7,10 @@ const {
   deleteClient,
 } = require("../controllers/client.controller");
 const { protect } = require("../middleware/auth.middleware");
+const { requireAgency } = require("../middleware/role.middleware");
 
 router.use(protect);
+router.use(requireAgency);
 
 router.get("/", getClients);
 router.post("/", createClient);

@@ -9,6 +9,8 @@ import EmptyState from "../components/EmptyState";
 const Files = () => {
   const accent = useAuthStore((s) => s.accent);
   const mode   = useAuthStore((s) => s.mode);
+  const user   = useAuthStore((s) => s.user);
+  const isAgency = user?.role !== "client";
   const navigate = useNavigate();
   const [projects, setProjects]               = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -59,6 +61,7 @@ const Files = () => {
   };
 
   const handleDelete = async (fileId) => {
+    if (!isAgency) return;
     if (!window.confirm("Delete this file?")) return;
     try {
       await API.delete(`/files/${fileId}`);
@@ -306,14 +309,16 @@ const Files = () => {
                         >
                           ⬇️ Download
                         </button>
-                        <button
-                          style={s.fileBtn("#f87171")}
-                          onClick={() => handleDelete(file._id)}
-                          onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                          onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                        >
-                          🗑
-                        </button>
+                        {isAgency ? (
+                          <button
+                            style={s.fileBtn("#f87171")}
+                            onClick={() => handleDelete(file._id)}
+                            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+                            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+                          >
+                            🗑
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ))}

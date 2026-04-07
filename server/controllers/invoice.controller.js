@@ -7,12 +7,25 @@ const generateInvoiceNumber = () => {
   return `INV-${year}-${random}`;
 };
 
-// @desc  Get all invoices
+function isAgency(user) {
+  return !user || user.role !== "client";
+}
+
+// @desc  Get all invoices (agency: owned; client: addressed to their email)
 // @route GET /api/invoices
 exports.getInvoices = async (req, res) => {
   try {
-    const invoices = await Invoice.find({ owner: req.user._id })
-      .sort({ createdAt: -1 });
+    let invoices;
+    if (req.user.role === "client") {
+      const email = req.user.email.toLowerCase();
+      invoices = await Invoice.find({
+        clientEmail: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      }).sort({ createdAt: -1 });
+    } else {
+      invoices = await Invoice.find({ owner: req.user._id }).sort({
+        createdAt: -1,
+      });
+    }
     res.json(invoices);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -23,6 +36,9 @@ exports.getInvoices = async (req, res) => {
 // @route POST /api/invoices
 exports.createInvoice = async (req, res) => {
   try {
+    if (!isAgency(req.user)) {
+      return res.status(403).json({ message: "Clients cannot create invoices" });
+    }
     const { clientName, clientEmail, items, tax, dueDate, notes } = req.body;
 
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -32,7 +48,7 @@ exports.createInvoice = async (req, res) => {
     const invoice = await Invoice.create({
       invoiceNumber: generateInvoiceNumber(),
       clientName,
-      clientEmail,
+      clientEmail: String(clientEmail).trim().toLowerCase(),
       items,
       subtotal,
       tax: tax || 0,
@@ -52,6 +68,9 @@ exports.createInvoice = async (req, res) => {
 // @route PUT /api/invoices/:id
 exports.updateInvoice = async (req, res) => {
   try {
+    if (!isAgency(req.user)) {
+      return res.status(403).json({ message: "Clients cannot edit invoices" });
+    }
     const invoice = await Invoice.findOneAndUpdate(
       { _id: req.params.id, owner: req.user._id },
       req.body,
@@ -69,6 +88,9 @@ exports.updateInvoice = async (req, res) => {
 // @route DELETE /api/invoices/:id
 exports.deleteInvoice = async (req, res) => {
   try {
+    if (!isAgency(req.user)) {
+      return res.status(403).json({ message: "Clients cannot delete invoices" });
+    }
     const invoice = await Invoice.findOneAndDelete({
       _id: req.params.id,
       owner: req.user._id,

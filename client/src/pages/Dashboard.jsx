@@ -51,6 +51,7 @@ const panelIn = {
 
 const Dashboard = () => {
   const user      = useAuthStore((s) => s.user);
+  const isClient  = user?.role === "client";
   const accent    = useAuthStore((s) => s.accent);
   const mode      = useAuthStore((s) => s.mode);
   const navigate  = useNavigate();
@@ -171,10 +172,12 @@ const Dashboard = () => {
 
   const statCards = stats ? [
     { label: "Projects", value: stats.projects, sub: "", icon: "🗂️", to: "/projects" },
-    { label: "Clients", value: stats.clients, sub: "", icon: "🤝", to: "/clients" },
+    ...(isClient
+      ? []
+      : [{ label: "Clients", value: stats.clients, sub: "", icon: "🤝", to: "/clients" }]),
     { label: "Pending Invoices", value: stats.pendingInvoices, sub: "", icon: "🧾", to: "/invoices" },
     {
-      label: "Revenue",
+      label: isClient ? "Paid to date" : "Revenue",
       value: `₹${stats.totalRevenue.toLocaleString()}`,
       sub: "",
       icon: "💰",
@@ -182,18 +185,24 @@ const Dashboard = () => {
     },
   ] : [
     { label: "Projects", value: "—", sub: "", icon: "🗂️" },
-    { label: "Clients", value: "—", sub: "", icon: "🤝" },
+    ...(isClient ? [] : [{ label: "Clients", value: "—", sub: "", icon: "🤝" }]),
     { label: "Pending Invoices", value: "—", sub: "", icon: "🧾" },
     { label: "Revenue", value: "—", sub: "", icon: "💰" },
   ];
 
-  const quickActions = [
-    { label: "➕ New Project", path: "/projects" },
-    { label: "🤝 Add Client",  path: "/clients"  },
-    { label: "🧾 New Invoice", path: "/invoices" },
-    { label: "📨 Messages",    path: "/messages" },
-    { label: "🗃️ Files",       path: "/files"    },
-  ];
+  const quickActions = isClient
+    ? [
+        { label: "📨 Messages", path: "/messages" },
+        { label: "🗃️ Files", path: "/files" },
+        { label: "🧾 Invoices", path: "/invoices" },
+      ]
+    : [
+        { label: "➕ New Project", path: "/projects" },
+        { label: "🤝 Add Client", path: "/clients" },
+        { label: "🧾 New Invoice", path: "/invoices" },
+        { label: "📨 Messages", path: "/messages" },
+        { label: "🗃️ Files", path: "/files" },
+      ];
 
   return (
     <Layout>
@@ -260,9 +269,13 @@ const Dashboard = () => {
               <EmptyState
                 icon="🗂️"
                 title="No projects yet"
-                subtitle="Create your first project to get started"
-                action="Create Project"
-                onAction={() => navigate("/projects")}
+                subtitle={
+                  isClient
+                    ? "Your freelancer will add you to a project you can open here."
+                    : "Create your first project to get started"
+                }
+                action={isClient ? undefined : "Create Project"}
+                onAction={isClient ? undefined : () => navigate("/projects")}
               />
             ) : (
               stats.recentProjects.map((p) => (

@@ -16,6 +16,7 @@ const Invoices = () => {
   const accent = useAuthStore((s) => s.accent);
   const mode   = useAuthStore((s) => s.mode);
   const user   = useAuthStore((s) => s.user);
+  const isAgency = user?.role !== "client";
   const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices]           = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -160,15 +161,17 @@ const Invoices = () => {
 
   return (
     <Layout>
-      <PageHeader title="Invoices">
-        <button
-          style={s.addBtn}
-          onClick={() => setShowModal(true)}
-          onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-          onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-        >
-          + New Invoice
-        </button>
+      <PageHeader title={isAgency ? "Invoices" : "My invoices"}>
+        {isAgency ? (
+          <button
+            style={s.addBtn}
+            onClick={() => setShowModal(true)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
+            + New Invoice
+          </button>
+        ) : null}
       </PageHeader>
 
       <div style={s.content}>
@@ -177,10 +180,15 @@ const Invoices = () => {
             <EmptyState icon="⏳" title="Loading invoices..." subtitle="" />
           ) : invoices.length === 0 ? (
             <EmptyState
-              icon="🧾" title="No invoices yet"
-              subtitle="Create your first invoice to get started"
-              action="+ New Invoice"
-              onAction={() => setShowModal(true)}
+              icon="🧾"
+              title="No invoices yet"
+              subtitle={
+                isAgency
+                  ? "Create your first invoice to get started"
+                  : "Invoices your freelancer sends to your email will appear here."
+              }
+              action={isAgency ? "+ New Invoice" : undefined}
+              onAction={isAgency ? () => setShowModal(true) : undefined}
             />
           ) : (
             <table style={s.table}>
@@ -262,23 +270,29 @@ const Invoices = () => {
             <button style={s.downloadBtn} onClick={() => generateInvoicePDF(selectedInvoice)}>
               ⬇️ Download PDF
             </button>
-            <div style={s.actionBtns}>
-              {["Draft","Sent","Paid","Overdue"].map(status => (
-                <button key={status} style={s.actionBtn(
-                  status === "Paid" ? "#34d399" :
-                  status === "Sent" ? "#38bdf8" :
-                  status === "Overdue" ? "#f87171" : "#94a3b8"
-                )} onClick={() => handleStatusChange(selectedInvoice._id, status)}>
-                  {status}
-                </button>
-              ))}
-              <button style={s.actionBtn("#f87171")} onClick={() => handleDelete(selectedInvoice._id)}>🗑 Delete</button>
-            </div>
+            {isAgency ? (
+              <div style={s.actionBtns}>
+                {["Draft", "Sent", "Paid", "Overdue"].map((status) => (
+                  <button
+                    key={status}
+                    style={s.actionBtn(
+                      status === "Paid" ? "#34d399" :
+                        status === "Sent" ? "#38bdf8" :
+                          status === "Overdue" ? "#f87171" : "#94a3b8"
+                    )}
+                    onClick={() => handleStatusChange(selectedInvoice._id, status)}
+                  >
+                    {status}
+                  </button>
+                ))}
+                <button style={s.actionBtn("#f87171")} onClick={() => handleDelete(selectedInvoice._id)}>🗑 Delete</button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
 
-      {showModal && (
+      {isAgency && showModal && (
         <div style={s.overlay} onClick={() => setShowModal(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <div style={s.modalTitle}>New Invoice</div>

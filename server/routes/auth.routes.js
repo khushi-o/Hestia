@@ -81,6 +81,53 @@ async function metricsForRange(owner, rangeStart, rangeEnd) {
   };
 }
 
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function clientMetricsForRange(userId, clientEmail, rangeStart, rangeEnd) {
+  const emailRe = new RegExp(`^${escapeRegex(clientEmail.toLowerCase())}$`, "i");
+  const [projects, invoicesInRange, paidInRange, avgAgg] = await Promise.all([
+    Project.countDocuments({
+      clients: userId,
+      createdAt: { $gte: rangeStart, $lte: rangeEnd },
+    }),
+    Invoice.find({
+      clientEmail: emailRe,
+      createdAt: { $gte: rangeStart, $lte: rangeEnd },
+    }),
+    Invoice.find({
+      clientEmail: emailRe,
+      status: "Paid",
+      updatedAt: { $gte: rangeStart, $lte: rangeEnd },
+    }).select("total updatedAt"),
+    Project.aggregate([
+      {
+        $match: {
+          clients: userId,
+          createdAt: { $gte: rangeStart, $lte: rangeEnd },
+        },
+      },
+      { $group: { _id: null, avg: { $avg: "$progress" } } },
+    ]),
+  ]);
+  const pendingInvoices = invoicesInRange.filter(
+    (inv) => inv.status === "Draft" || inv.status === "Sent"
+  ).length;
+  const totalRevenue = paidInRange.reduce((sum, inv) => sum + inv.total, 0);
+  const rawAvg = avgAgg[0]?.avg;
+  const avgProjectProgress =
+    rawAvg == null ? 0 : Math.round(rawAvg * 10) / 10;
+  return {
+    projects,
+    pendingInvoices,
+    totalRevenue,
+    avgProjectProgress,
+    invoicesInRange,
+    paidInRange,
+  };
+}
+
 router.post("/register", authWriteLimiter, register);
 router.post("/login", authWriteLimiter, login);
 
@@ -89,6 +136,78 @@ router.get("/stats", protect, async (req, res) => {
   try {
     const owner = req.user._id;
     const { from, to } = req.query;
+
+    if (req.user.role === "client") {
+      if (!from || !to) {
+        return res.status(400).json({ message: "from and to are required" });
+      }
+      const start = new Date(from);
+      const end = new Date(to);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return res.status(400).json({ message: "Invalid from/to dates" });
+      }
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (start > end) {
+        return res
+          .status(400)
+          .json({ message: "from must be before or equal to to" });
+      }
+      const prev = previousPeriodBounds(start, end);
+      const [current, previousMetrics, recentProjects] = await Promise.all([
+        clientMetricsForRange(req.user._id, req.user.email, start, end),
+        clientMetricsForRange(req.user._id, req.user.email, prev.from, prev.to),
+        Project.find({
+          clients: req.user._id,
+          createdAt: { $gte: start, $lte: end },
+        })
+          .sort({ createdAt: -1 })
+          .limit(3)
+          .select("name status progress"),
+      ]);
+
+      const byDay = {};
+      current.paidInRange.forEach((inv) => {
+        const key = inv.updatedAt.toISOString().slice(0, 10);
+        byDay[key] = (byDay[key] || 0) + inv.total;
+      });
+      const revenueSeries = [];
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        const key = cursor.toISOString().slice(0, 10);
+        revenueSeries.push({ date: key, revenue: byDay[key] || 0 });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      const invoiceStatusMix = { Draft: 0, Sent: 0, Paid: 0, Overdue: 0 };
+      current.invoicesInRange.forEach((inv) => {
+        if (invoiceStatusMix[inv.status] !== undefined) {
+          invoiceStatusMix[inv.status] += 1;
+        }
+      });
+
+      return res.json({
+        viewerRole: "client",
+        projects: current.projects,
+        clients: 0,
+        pendingInvoices: current.pendingInvoices,
+        totalRevenue: current.totalRevenue,
+        avgProjectProgress: current.avgProjectProgress,
+        recentProjects,
+        revenueSeries,
+        invoiceStatusMix,
+        range: { from: start.toISOString(), to: end.toISOString() },
+        previousPeriod: {
+          from: prev.from.toISOString(),
+          to: prev.to.toISOString(),
+          projects: previousMetrics.projects,
+          clients: 0,
+          pendingInvoices: previousMetrics.pendingInvoices,
+          totalRevenue: previousMetrics.totalRevenue,
+          avgProjectProgress: previousMetrics.avgProjectProgress,
+        },
+      });
+    }
 
     if (!from || !to) {
       const [projects, clients, invoices] = await Promise.all([

@@ -15,11 +15,20 @@ const Projects = () => {
   const accent = useAuthStore((s) => s.accent);
   const mode   = useAuthStore((s) => s.mode);
   const user   = useAuthStore((s) => s.user);
+  const isAgency = user?.role !== "client";
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects]   = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editOpen, setEditOpen]   = useState(false);
+  const [editForm, setEditForm]   = useState(null);
   const [loading, setLoading]     = useState(true);
-  const [form, setForm] = useState({ name: "", description: "", status: "Active", dueDate: today });
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    status: "Active",
+    dueDate: today,
+    clientEmailsStr: "",
+  });
 
   const a = accents[accent];
   const m = modes[mode];
@@ -53,12 +62,59 @@ const Projects = () => {
   const handleCreate = async () => {
     if (!form.name) return alert("Project name is required");
     try {
-      const res = await API.post("/projects", form);
+      const clientEmails = form.clientEmailsStr
+        .split(/[,;\s]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const payload = { ...form };
+      delete payload.clientEmailsStr;
+      if (clientEmails.length) payload.clientEmails = clientEmails;
+      const res = await API.post("/projects", payload);
       setProjects([res.data, ...projects]);
       setShowModal(false);
-      setForm({ name: "", description: "", status: "Active", dueDate: today });
+      setForm({
+        name: "",
+        description: "",
+        status: "Active",
+        dueDate: today,
+        clientEmailsStr: "",
+      });
     } catch (err) {
       alert(err.response?.data?.message || "Failed to create project");
+    }
+  };
+
+  const openEdit = (p) => {
+    setEditForm({
+      _id: p._id,
+      name: p.name,
+      description: p.description || "",
+      status: p.status,
+      dueDate: p.dueDate ? String(p.dueDate).slice(0, 10) : today,
+      clientEmailsStr: "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm?.name) return alert("Project name is required");
+    try {
+      const clientEmails = editForm.clientEmailsStr
+        .split(/[,;\s]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const res = await API.put(`/projects/${editForm._id}`, {
+        name: editForm.name,
+        description: editForm.description,
+        status: editForm.status,
+        dueDate: editForm.dueDate,
+        clientEmails,
+      });
+      setProjects(projects.map((x) => (x._id === res.data._id ? res.data : x)));
+      setEditOpen(false);
+      setEditForm(null);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to update project");
     }
   };
 
@@ -178,15 +234,17 @@ const Projects = () => {
 
   return (
     <Layout>
-      <PageHeader title="Projects">
-        <button
-          style={s.addBtn}
-          onClick={() => setShowModal(true)}
-          onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-          onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-        >
-          + New Project
-        </button>
+      <PageHeader title={isAgency ? "Projects" : "My projects"}>
+        {isAgency ? (
+          <button
+            style={s.addBtn}
+            onClick={() => setShowModal(true)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
+            + New Project
+          </button>
+        ) : null}
       </PageHeader>
 
       <div style={s.content}>
@@ -194,10 +252,15 @@ const Projects = () => {
           <EmptyState icon="⏳" title="Loading projects..." subtitle="" />
         ) : projects.length === 0 ? (
           <EmptyState
-            icon="🗂️" title="No projects yet"
-            subtitle="Create your first project and start managing your work"
-            action="+ New Project"
-            onAction={() => setShowModal(true)}
+            icon="🗂️"
+            title="No projects yet"
+            subtitle={
+              isAgency
+                ? "Create your first project and start managing your work"
+                : "Ask your freelancer to add your email to a project (they need a client account registered with the same email)."
+            }
+            action={isAgency ? "+ New Project" : undefined}
+            onAction={isAgency ? () => setShowModal(true) : undefined}
           />
         ) : (
           <div style={s.grid}>
@@ -258,17 +321,31 @@ const Projects = () => {
                   <div style={s.dueDate}>
                     {p.dueDate ? `Due ${new Date(p.dueDate).toLocaleDateString()}` : "No due date"}
                   </div>
-                  <button
-                    style={s.deleteBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(p._id);
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(248,113,113,0.1)"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "none"}
-                  >
-                    🗑 Delete
-                  </button>
+                  {isAgency ? (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        style={{ ...s.deleteBtn, color: a.color }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(p);
+                        }}
+                      >
+                        Invite clients
+                      </button>
+                      <button
+                        style={s.deleteBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(p._id);
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = "rgba(248,113,113,0.1)"}
+                        onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -308,9 +385,67 @@ const Projects = () => {
               label="Due date"
               zIndex={200}
             />
+            <label style={{ fontSize: 11, color: m.textMuted, display: "block", marginBottom: 4 }}>
+              Portal client emails (optional, comma-separated — each must have a client account)
+            </label>
+            <input
+              style={s.input}
+              placeholder="client@example.com"
+              value={form.clientEmailsStr}
+              onChange={(e) => setForm({ ...form, clientEmailsStr: e.target.value })}
+            />
             <div style={s.modalBtns}>
               <button style={s.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
               <button style={s.saveBtn} onClick={handleCreate}>Create Project</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && editForm && (
+        <div style={s.overlay} onClick={() => { setEditOpen(false); setEditForm(null); }}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalTitle}>Project & client access</div>
+            <input
+              style={s.input} placeholder="Project name *"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            />
+            <textarea
+              style={{ ...s.input, height: 72, resize: "vertical" }}
+              placeholder="Description"
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            />
+            <select
+              style={s.select} value={editForm.status}
+              onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+            >
+              <option value="Active">Active</option>
+              <option value="Review">Review</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On Hold</option>
+            </select>
+            <SingleDatePicker
+              value={editForm.dueDate}
+              onChange={(dueDate) => setEditForm({ ...editForm, dueDate })}
+              accent={a}
+              surface={m}
+              label="Due date"
+              zIndex={200}
+            />
+            <label style={{ fontSize: 11, color: m.textMuted, display: "block", marginBottom: 4 }}>
+              Portal clients — login emails (comma-separated, client accounts only)
+            </label>
+            <input
+              style={s.input}
+              placeholder="client@example.com"
+              value={editForm.clientEmailsStr}
+              onChange={(e) => setEditForm({ ...editForm, clientEmailsStr: e.target.value })}
+            />
+            <div style={s.modalBtns}>
+              <button type="button" style={s.cancelBtn} onClick={() => { setEditOpen(false); setEditForm(null); }}>Cancel</button>
+              <button type="button" style={s.saveBtn} onClick={handleSaveEdit}>Save</button>
             </div>
           </div>
         </div>

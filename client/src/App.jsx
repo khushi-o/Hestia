@@ -18,6 +18,13 @@ const ProtectedRoute = ({ children }) => {
   return token ? children : <Navigate to="/login" />;
 };
 
+/** CRM "Clients" segment is for freelancer/agency accounts only. */
+const AgencyOnly = ({ children }) => {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === "client") return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -28,7 +35,7 @@ const App = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-        <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+        <Route path="/clients" element={<ProtectedRoute><AgencyOnly><Clients /></AgencyOnly></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
         <Route path="/files" element={<ProtectedRoute><Files /></ProtectedRoute>} />

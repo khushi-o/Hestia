@@ -3,6 +3,16 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import useAuthStore from "../store/authStore";
 
+/** Set in `server/scripts/seed-demo.js` — run seed after deploy for instant trials. */
+const DEMO_AGENCY = {
+  email: "demo@hestia.app",
+  password: "Demo123!",
+};
+const DEMO_CLIENT = {
+  email: "client@hestia.app",
+  password: "Demo123!",
+};
+
 const C = {
   bg:        "#F9F7F2",
   green:     "#1B4332",
@@ -13,7 +23,9 @@ const C = {
 };
 
 const Login = () => {
-  const { register, handleSubmit } = useForm();
+  const { register, handleSubmit, setValue } = useForm({
+    defaultValues: { email: "", password: "" },
+  });
   const navigate = useNavigate();
   const login    = useAuthStore((s) => s.login);
 
@@ -68,6 +80,35 @@ const Login = () => {
             </div>
             <div style={s.title}>Welcome back</div>
             <div style={s.subtitle}>Sign in to your workspace</div>
+          </div>
+
+          <div style={s.demoBox}>
+            <div style={s.demoTitle}>Try the demo</div>
+            <div style={s.demoRow}>
+              <button
+                type="button"
+                style={s.demoBtn}
+                onClick={() => {
+                  setValue("email", DEMO_AGENCY.email);
+                  setValue("password", DEMO_AGENCY.password);
+                }}
+              >
+                Freelancer account
+              </button>
+              <button
+                type="button"
+                style={s.demoBtn}
+                onClick={() => {
+                  setValue("email", DEMO_CLIENT.email);
+                  setValue("password", DEMO_CLIENT.password);
+                }}
+              >
+                Client portal
+              </button>
+            </div>
+            <div style={s.demoHint}>
+              Run <code style={s.code}>node scripts/seed-demo.js</code> in <code style={s.code}>server/</code> first (see README).
+            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} style={s.form}>
@@ -186,7 +227,50 @@ const s = {
     background: C.bg,
   },
   card: { width: "100%", maxWidth: 390 },
-  cardHeader: { marginBottom: 32, textAlign: "center" },
+  demoBox: {
+    background: "rgba(27,67,50,0.06)",
+    border: `1px solid ${C.border}`,
+    borderRadius: 12,
+    padding: "14px 16px",
+    marginBottom: 20,
+    textAlign: "left",
+  },
+  demoTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: C.charcoal,
+    letterSpacing: "0.6px",
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  demoRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+  demoBtn: {
+    flex: 1,
+    minWidth: 120,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: `1px solid ${C.green}`,
+    background: "#fff",
+    color: C.green,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif",
+  },
+  demoHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: C.muted,
+    lineHeight: 1.45,
+  },
+  code: {
+    fontSize: 10,
+    background: "rgba(0,0,0,0.05)",
+    padding: "1px 5px",
+    borderRadius: 4,
+    fontFamily: "ui-monospace, monospace",
+  },
+  cardHeader: { marginBottom: 24, textAlign: "center" },
   logoRow: { display: "flex", justifyContent: "center", marginBottom: 20 },
   logoBox: {
     width: 48, height: 48, borderRadius: 14,

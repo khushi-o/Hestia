@@ -33,4 +33,35 @@ async function requireProjectOwner(req, res, next) {
   }
 }
 
-module.exports = { requireProjectOwner, isValidObjectId };
+/**
+ * Project owner OR invited portal client (in project.clients).
+ */
+async function requireProjectAccess(req, res, next) {
+  try {
+    const projectId = req.params.projectId;
+    if (!isValidObjectId(projectId)) {
+      return res.status(400).json({ message: "Invalid project" });
+    }
+    const project = await Project.findOne({
+      _id: projectId,
+      $or: [{ owner: req.user._id }, { clients: req.user._id }],
+    });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    req.project = project;
+    next();
+  } catch (err) {
+    const msg =
+      process.env.NODE_ENV === "production"
+        ? "Something went wrong"
+        : err.message;
+    res.status(500).json({ message: msg });
+  }
+}
+
+module.exports = {
+  requireProjectOwner,
+  requireProjectAccess,
+  isValidObjectId,
+};

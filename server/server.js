@@ -51,17 +51,20 @@ async function start() {
   app.use("/api/search", require("./routes/search.routes"));
   // Uploads are served only via GET /api/files/download/:fileId (auth + owner check), not public static.
 
-  async function userOwnsProject(userId, projectId) {
+  async function userCanAccessProject(userId, projectId) {
     if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
       return false;
     }
-    const p = await Project.findOne({ _id: projectId, owner: userId });
+    const p = await Project.findOne({
+      _id: projectId,
+      $or: [{ owner: userId }, { clients: userId }],
+    });
     return !!p;
   }
 
   io.on("connection", (socket) => {
     socket.on("join_project", async (projectId, cb) => {
-      const ok = await userOwnsProject(socket.user._id, projectId);
+      const ok = await userCanAccessProject(socket.user._id, projectId);
       if (ok) {
         const next = String(projectId);
         const prev = socket.data?.activeProjectId;

@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const Message = require("../models/message.model");
 const { protect } = require("../middleware/auth.middleware");
-const { requireProjectOwner } = require("../middleware/projectAccess.middleware");
+const { requireProjectAccess } = require("../middleware/projectAccess.middleware");
 const Notification = require("../models/notification.model");
 const Project = require("../models/project.model");
 
@@ -13,7 +13,7 @@ router.use(protect);
 
 router.delete(
   "/:projectId/:messageId",
-  requireProjectOwner,
+  requireProjectAccess,
   async (req, res) => {
     try {
       const { projectId, messageId } = req.params;
@@ -53,7 +53,7 @@ router.delete(
   }
 );
 
-router.get("/:projectId", requireProjectOwner, async (req, res) => {
+router.get("/:projectId", requireProjectAccess, async (req, res) => {
   try {
     const messages = await Message.find({ project: req.params.projectId })
       .sort({ createdAt: 1 })
@@ -68,7 +68,7 @@ router.get("/:projectId", requireProjectOwner, async (req, res) => {
   }
 });
 
-router.post("/:projectId", requireProjectOwner, async (req, res) => {
+router.post("/:projectId", requireProjectAccess, async (req, res) => {
   try {
     const text = (req.body.text ?? "").trim();
     if (!text) {

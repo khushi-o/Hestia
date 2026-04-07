@@ -23,7 +23,7 @@ const W_COLLAPSED = 72;
 const NAV = [
   { label: "Dashboard", Icon: LayoutDashboard, path: "/dashboard" },
   { label: "Projects", Icon: FolderKanban, path: "/projects" },
-  { label: "Clients", Icon: Users, path: "/clients" },
+  { label: "Clients", Icon: Users, path: "/clients", agencyOnly: true },
   { label: "Invoices", Icon: FileText, path: "/invoices" },
   { label: "Messages", Icon: MessageSquare, path: "/messages" },
   { label: "Files", Icon: FolderOpen, path: "/files" },
@@ -37,6 +37,8 @@ const Sidebar = () => {
   const logout   = useAuthStore((s) => s.logout);
   const accent   = useAuthStore((s) => s.accent);
   const mode     = useAuthStore((s) => s.mode);
+  const role     = useAuthStore((s) => s.user?.role);
+  const isClient = role === "client";
   const [unread, setUnread] = useState(0);
   const [collapsed, setCollapsed] = useState(
     () => typeof localStorage !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1"
@@ -307,7 +309,7 @@ const Sidebar = () => {
           )}
         </div>
 
-        {NAV.map(({ label, Icon, path }) => {
+        {NAV.filter((item) => !item.agencyOnly || !isClient).map(({ label, Icon, path }) => {
           const active = location.pathname === path;
           return (
             <div
