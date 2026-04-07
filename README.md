@@ -14,7 +14,7 @@ Stack: **React (Vite)** + **Node (Express)** + **MongoDB** + **Socket.io**.
 | Invoices | Full CRUD, PDF | **View & download** invoices addressed to their email |
 | Messages | All owned projects + invited projects | Threads for **invited projects** only |
 | Files | Upload, download, **delete** | Upload & download; **no delete** (owner-only) |
-| Search (⌘K) | Projects, CRM contacts, invoices | Projects & invoices visible to them |
+| Search (⌘K) | Projects, CRM contacts, invoices; optional **smart search** (OpenAI) when `OPENAI_API_KEY` is set | Same scoping; CRM hidden; smart search respects portal visibility |
 
 **Realtime:** Messages are saved with `POST /api/messages/:projectId`, then broadcast as `receive_message`. **`join_project`** allows access if the user **owns** the project **or** is listed in `project.clients`.
 
@@ -74,6 +74,8 @@ docs/            # Optional architecture notes
 | `PORT` | Default `5000` |
 | `CLIENT_ORIGIN` | Comma-separated origins for CORS + Socket.io (no spaces) |
 | `DNS_SERVERS` | Optional; some Windows `mongodb+srv` setups |
+| `OPENAI_API_KEY` | Optional; enables **smart** natural-language interpretation for ⌘K search (`?nl=1`) |
+| `OPENAI_NL_MODEL` | Optional; defaults to `gpt-4o-mini` |
 
 ### Client (`client/.env.local`)
 
@@ -106,7 +108,7 @@ npm run dev
 
 1. Deploy **server** (Railway, Render, etc.): set `MONGO_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`.  
 2. Deploy **client** (Vercel, etc.): set `VITE_API_URL` / `VITE_SOCKET_URL` at build time.  
-3. Run **`npm run seed:demo`** once against production **only if** you want public demo logins (optional; rotate or remove demo users for real productions).
+3. Run **`npm run seed:demo`** once with **the same `MONGO_URI`** your deployed API uses **only if** you want public demo logins (`demo@hestia.app` / `client@hestia.app`). Until you do, those buttons on the login page will fail with invalid credentials (optional; rotate or remove demo users for real productions).
 
 `client/vercel.json` includes SPA rewrites so client-side routes work on refresh.
 
@@ -116,7 +118,7 @@ Planned enhancements on top of this product surface:
 
 - **Freelancer:** AI-assisted **proposal** generator from project/client context.  
 - **Client portal:** AI **project status** summary (read-only narrative).  
-- **Both:** **Natural-language search** across projects (semantic/RAG on owned/visible data).
+- **Both:** **Natural-language search** is partially implemented: with `OPENAI_API_KEY`, longer ⌘K queries can be interpreted into scoped filters (same permissions as keyword search). Full semantic/RAG remains future work.
 
 These require an LLM provider, budgeting, and careful prompt/permission boundaries (especially for client-visible text).
 

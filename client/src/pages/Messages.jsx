@@ -127,6 +127,7 @@ const Messages = () => {
     };
 
     socket.on("connect", joinSelectedRoom);
+    socket.on("reconnect", joinSelectedRoom);
     socket.on("receive_message", (msg) => {
       const sp = selectedProjectRef.current;
       const pid =
@@ -153,6 +154,7 @@ const Messages = () => {
     socket.on("message_deleted", onDeleted);
     return () => {
       socket.off("connect", joinSelectedRoom);
+      socket.off("reconnect", joinSelectedRoom);
       socket.off("receive_message");
       socket.off("message_deleted", onDeleted);
       socket.disconnect();
@@ -194,7 +196,15 @@ const Messages = () => {
     const body = text.trim();
     sendingRef.current = true;
     try {
-      await API.post(`/messages/${selectedProject._id}`, { text: body });
+      const res = await API.post(`/messages/${selectedProject._id}`, {
+        text: body,
+      });
+      const created = res.data;
+      setMessages((prev) => {
+        const id = messageMongoId(created);
+        if (id && prev.some((m) => messageMongoId(m) === id)) return prev;
+        return [...prev, created];
+      });
       setText("");
     } catch (err) {
       console.error(err);
@@ -297,12 +307,6 @@ const Messages = () => {
     chatHeaderTitle: {
       fontFamily: "'Syne', sans-serif", fontSize: 15,
       fontWeight: 700, color: m.text,
-    },
-    chatHeaderCaption: {
-      fontSize: 11,
-      color: m.textMuted,
-      marginTop: 4,
-      lineHeight: 1.3,
     },
     chatHeaderSub: { fontSize: 12, color: m.textMuted, marginLeft: "auto", flexShrink: 0 },
     deleteBanner: {
@@ -444,9 +448,6 @@ const Messages = () => {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={s.chatHeaderTitle}>{selectedProject.name}</div>
-                  <div style={s.chatHeaderCaption}>
-                    Project message thread (your notes for this job)
-                  </div>
                 </div>
                 <div style={s.chatHeaderSub}>{messages.length} messages</div>
               </div>

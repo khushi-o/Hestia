@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
@@ -23,6 +24,7 @@ const C = {
 };
 
 const Login = () => {
+  const [loginError, setLoginError] = useState("");
   const { register, handleSubmit, setValue } = useForm({
     defaultValues: { email: "", password: "" },
   });
@@ -30,12 +32,24 @@ const Login = () => {
   const login    = useAuthStore((s) => s.login);
 
   const onSubmit = async (data) => {
+    setLoginError("");
     try {
       const res = await API.post("/auth/login", data);
       login(res.data);
       navigate("/dashboard");
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      const msg =
+        err.response?.data?.message || "Login failed";
+      const email = (data.email || "").trim().toLowerCase();
+      const demoSeedEmails =
+        email === "demo@hestia.app" || email === "client@hestia.app";
+      if (msg === "Invalid credentials" && demoSeedEmails) {
+        setLoginError(
+          "Demo users are not in the database your API is using. Run npm run seed:demo from the server folder with the same MONGO_URI as production (Railway/Render/etc.), then try again — or create a new account with Register."
+        );
+      } else {
+        setLoginError(msg);
+      }
     }
   };
 
@@ -106,9 +120,6 @@ const Login = () => {
                 Client portal
               </button>
             </div>
-            <div style={s.demoHint}>
-              Run <code style={s.code}>node scripts/seed-demo.js</code> in <code style={s.code}>server/</code> first (see README).
-            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} style={s.form}>
@@ -147,6 +158,23 @@ const Login = () => {
             >
               Sign In →
             </button>
+            {loginError ? (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 12,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  color: "#5c2a2a",
+                  background: "rgba(180, 60, 60, 0.08)",
+                  border: "1px solid rgba(180, 60, 60, 0.25)",
+                }}
+              >
+                {loginError}
+              </div>
+            ) : null}
           </form>
 
           <div style={s.divider}>
@@ -256,19 +284,6 @@ const s = {
     fontWeight: 600,
     cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif",
-  },
-  demoHint: {
-    marginTop: 10,
-    fontSize: 11,
-    color: C.muted,
-    lineHeight: 1.45,
-  },
-  code: {
-    fontSize: 10,
-    background: "rgba(0,0,0,0.05)",
-    padding: "1px 5px",
-    borderRadius: 4,
-    fontFamily: "ui-monospace, monospace",
   },
   cardHeader: { marginBottom: 24, textAlign: "center" },
   logoRow: { display: "flex", justifyContent: "center", marginBottom: 20 },
