@@ -1,6 +1,6 @@
 # Hestia
 
-Hestia is a freelancer-focused workspace for **projects**, **CRM contacts**, **invoices**, **per-project messaging**, **files**, and **notifications**. It includes a **client portal**: people with the `client` role sign in and only see **projects they are invited to**, **invoices sent to their email**, and can **reply in the same message threads** as the agency.
+Hestia is a client portal SaaS for freelancers and agencies — manage projects, send invoices, share files, and communicate with clients in one workspace. Built with React, Node.js, MongoDB, and Socket.io.
 
 Stack: **React (Vite)** + **Node (Express)** + **MongoDB** + **Socket.io**.
 
@@ -147,4 +147,4 @@ JWT on REST and sockets, project scoping via **`requireProjectAccess`** (owner o
 
 ## License
 
-Add your license (e.g. MIT) when you publish.
+MIT License
