@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
-import { Trash2 } from "lucide-react";
+import { Trash2, MessageSquare } from "lucide-react";
 import API from "../api/axios";
 import useAuthStore from "../store/authStore";
 import { accents, modes } from "../theme";
 import Layout from "../components/Layout";
 import EmptyState from "../components/EmptyState";
+import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import { getSocketUrl } from "../config/env.js";
 
 const Messages = () => {
@@ -21,6 +22,8 @@ const Messages = () => {
   const [text, setText]                       = useState("");
   const [loading, setLoading]                 = useState(false);
   const [deletingId, setDeletingId]           = useState(null);
+  const [confirmDeleteMsg, setConfirmDeleteMsg] = useState(null);
+  const [deleteNotice, setDeleteNotice]     = useState("");
   const bottomRef = useRef(null);
   const socketRef = useRef(null);
   const joinedRoomRef = useRef(null);
@@ -96,10 +99,7 @@ const Messages = () => {
 
   const selectProject = async (project) => {
     const sock = socketRef.current;
-    if (sock && joinedRoomRef.current) {
-      sock.leave(String(joinedRoomRef.current));
-      joinedRoomRef.current = null;
-    }
+    /* Socket.io client has no leave(); server drops the previous project room on join_project. */
     setSelectedProject(project);
     setLoading(true);
     if (sock) {
@@ -125,15 +125,28 @@ const Messages = () => {
     }
   };
 
-  const deleteMessage = async (msg) => {
-    if (!selectedProject || !msg._id) return;
-    if (!window.confirm("Delete this message? This cannot be undone.")) return;
+  const runConfirmedDelete = async () => {
+    const msg = confirmDeleteMsg;
+    if (!msg || !selectedProject || !msg._id) {
+      setConfirmDeleteMsg(null);
+      return;
+    }
     const id = String(msg._id);
+    const projectId = String(selectedProject._id);
     setDeletingId(id);
+    setDeleteNotice("");
     try {
-      await API.delete(`/messages/${selectedProject._id}/${id}`);
+      await API.delete(`/messages/${projectId}/${id}`);
       setMessages((prev) => prev.filter((m) => String(m._id) !== id));
+      setConfirmDeleteMsg(null);
     } catch (err) {
+      const apiMsg =
+        err.response?.data?.message ||
+        (err.message === "Network Error"
+          ? "Cannot reach the server. Check your connection and API URL."
+          : "Could not delete this message.");
+      setConfirmDeleteMsg(null);
+      setDeleteNotice(apiMsg);
       console.error(err);
     } finally {
       setDeletingId(null);
@@ -144,10 +157,11 @@ const Messages = () => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const userId = user?._id ?? user?.id;
   const isMe = (msg) =>
     (msg.sender != null &&
-      user?._id != null &&
-      String(msg.sender) === String(user._id)) ||
+      userId != null &&
+      String(msg.sender) === String(userId)) ||
     (msg.senderName && user?.name && msg.senderName === user.name);
   const formatTime = (date) => new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -190,9 +204,17 @@ const Messages = () => {
       background: m.topbar, display: "flex",
       alignItems: "center", gap: 12, flexShrink: 0,
     },
-    chatHeaderDot: {
-      width: 8, height: 8, borderRadius: "50%",
-      background: a.color, boxShadow: `0 0 10px ${a.color}`,
+    chatHeaderIcon: {
+      flexShrink: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      background: `${a.color}18`,
+      border: `1px solid ${a.color}35`,
+      color: a.color,
     },
     chatHeaderTitle: {
       fontFamily: "'Syne', sans-serif", fontSize: 15,
@@ -314,7 +336,9 @@ const Messages = () => {
           ) : (
             <>
               <div style={s.chatHeader}>
-                <div style={s.chatHeaderDot}></div>
+                <div style={s.chatHeaderIcon} aria-hidden>
+                  <MessageSquare size={18} strokeWidth={2} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={s.chatHeaderTitle}>{selectedProject.name}</div>
                   <div style={s.chatHeaderCaption}>
@@ -323,6 +347,20 @@ const Messages = () => {
                 </div>
                 <div style={s.chatHeaderSub}>{messages.length} messages</div>
               </div>
+              {deleteNotice ? (
+                <div
+                  role="status"
+                  style={{
+                    padding: "10px 24px",
+                    fontSize: 13,
+                    color: "#fecaca",
+                    background: "rgba(220,38,38,0.15)",
+                    borderBottom: `1px solid ${m.cardBorder}`,
+                  }}
+                >
+                  {deleteNotice}
+                </div>
+              ) : null}
               <div style={s.messages}>
                 {loading ? (
                   <div style={{ textAlign: "center", color: m.textMuted, fontSize: 13 }}>
@@ -352,7 +390,10 @@ const Messages = () => {
                                 ...s.msgDeleteBtn,
                                 opacity: deletingId === String(msg._id) ? 0.5 : 1,
                               }}
-                              onClick={() => deleteMessage(msg)}
+                              onClick={() => {
+                                setDeleteNotice("");
+                                setConfirmDeleteMsg(msg);
+                              }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.color = "#f87171";
                                 e.currentTarget.style.borderColor = "rgba(248,113,113,0.35)";
@@ -400,6 +441,17 @@ const Messages = () => {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!confirmDeleteMsg}
+        title="Delete message?"
+        description="This will remove it from your project thread permanently."
+        confirmLabel={deletingId ? "Deleting…" : "Delete"}
+        cancelLabel="Cancel"
+        danger
+        busy={!!deletingId}
+        onClose={() => !deletingId && setConfirmDeleteMsg(null)}
+        onConfirm={runConfirmedDelete}
+      />
     </Layout>
   );
 };

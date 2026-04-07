@@ -56,7 +56,15 @@ async function start() {
   io.on("connection", (socket) => {
     socket.on("join_project", async (projectId, cb) => {
       const ok = await userOwnsProject(socket.user._id, projectId);
-      if (ok) socket.join(String(projectId));
+      if (ok) {
+        const next = String(projectId);
+        const prev = socket.data?.activeProjectId;
+        if (prev && prev !== next) {
+          socket.leave(prev);
+        }
+        socket.join(next);
+        socket.data.activeProjectId = next;
+      }
       if (typeof cb === "function") cb({ ok });
     });
 

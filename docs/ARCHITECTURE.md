@@ -25,7 +25,7 @@ Hestia uses a **three-tier** pattern:
 | Path | Purpose |
 |------|---------|
 | `pages/` | Route-level screens: `Landing`, `Login`, `Register`, `Dashboard`, `Projects`, `Clients`, `Invoices`, `Messages`, `Files`, `Profile`, `Notifications` |
-| `components/` | Shared UI: `Layout`, `Sidebar`, `PageHeader`, `StatCard`, `EmptyState`, `GlobalSearch`, `ThemePicker`, `ThemeTransitionOverlay` |
+| `components/` | Shared UI: `Layout`, `Sidebar`, `PageHeader`, `StatCard`, `EmptyState`, `GlobalSearch`, `ThemePicker`, `ThemeTransitionOverlay`, `ConfirmDialog` (themed replaces `window.confirm` where used) |
 | `contexts/` | `ThemeChangeContext` — theme changes with animated transition + shortcuts |
 | `store/` | Zustand `authStore` (user, token, accent, mode) |
 | `api/` | Axios instance + JWT interceptor (`axios.js`) |
@@ -87,6 +87,7 @@ Core resources as in your earlier table (auth, projects, clients, invoices, mess
 - **Stats:** `GET` `/api/auth/stats`
 - **Notifications:** under `/api/notifications`
 - **Search:** `GET` `/api/search?q=` (authenticated)
+- **Messages:** `GET`/`POST` `/api/messages/:projectId`, **`DELETE`** `/api/messages/:projectId/:messageId` (sender must match current user; project owner only)
 
 Environment variables (see `server/.env.example`): `MONGO_URI`, `JWT_SECRET`, `PORT`, `CLIENT_ORIGIN`.
 
@@ -96,7 +97,10 @@ Environment variables (see `server/.env.example`): `MONGO_URI`, `JWT_SECRET`, `P
 
 - Server shares HTTP server with Express; CORS aligned with `CLIENT_ORIGIN`.
 - Client `messages` page uses Socket.io URL from **`getSocketUrl()`** (`env.js`).
-- Events: `join_project`, `send_message`, `receive_message`; messages persist via REST.
+- Events:
+  - **`join_project`** — client joins a project room after ownership is verified. The server leaves the previous project room for that socket (the browser client does not support `socket.leave()`; cleanup is server-side via `socket.data.activeProjectId`).
+  - **`receive_message`** — emitted by the server **after** a message is saved in **`POST /api/messages/:projectId`** (single source of truth; no client `send_message` emit).
+  - **`message_deleted`** — emitted after **`DELETE /api/messages/:projectId/:messageId`** so all tabs stay in sync.
 
 ---
 
