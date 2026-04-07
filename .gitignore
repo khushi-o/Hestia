@@ -1,2 +1,13 @@
-# Local-only planning docs (not for remote)
+# Local-only planning / notes (not committed)
 LOCAL_TWO_SIDED_SAAS_REQUIREMENTS.md
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Root-level env (defense in depth; server/client have their own .gitignore)
+.env
+.env.*
+!.env.example

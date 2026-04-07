@@ -74,7 +74,7 @@ The client is pre-linked to the demo project and has a sample invoice. After see
 client/          # Vite + React 19, Zustand, Lucide, Socket.io client
 server/          # Express 5, Mongoose, Socket.io, Multer, JWT
 server/scripts/  # seed-demo.js
-docs/            # Optional architecture notes
+docs/            # ARCHITECTURE.md, Screenshots/
 ```
 
 ## Prerequisites
