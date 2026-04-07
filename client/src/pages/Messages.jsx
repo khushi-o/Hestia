@@ -36,28 +36,52 @@ function messageMongoId(msg) {
   return String(id);
 }
 
+function looksLikeHtmlOrServerDump(text) {
+  const t = text.trim();
+  return (
+    t.includes("<!DOCTYPE") ||
+    t.includes("<html") ||
+    t.includes("Cannot DELETE") ||
+    t.includes("Cannot GET") ||
+    t.includes("<pre>")
+  );
+}
+
+/** End-user copy only — details go to the console for developers. */
 function formatDeleteError(err) {
-  const d = err.response?.data;
-  if (typeof d === "string" && d.trim()) {
-    if (d.includes("Cannot DELETE") || d.includes("<!DOCTYPE")) {
-      return "This API does not support deleting messages yet. Redeploy your backend (Railway/Render) from the latest main branch, then try again.";
-    }
-    return d;
-  }
-  if (d && typeof d === "object" && typeof d.message === "string" && d.message.trim()) {
-    return d.message;
+  if (import.meta.env.DEV) {
+    console.warn("[messages] delete failed", err.response?.status, err.response?.data ?? err.message);
   }
   const st = err.response?.status;
-  if (st === 401) return "Session expired. Log in again.";
-  if (st === 403) return "You can only delete your own messages.";
-  if (st === 404)
-    return "Message not found — refresh the page. If you just deployed the API, wait for it to finish rolling out.";
-  if (st === 405)
-    return "This server does not allow deleting messages (HTTP 405). Deploy the latest API version.";
-  if (err.message === "Network Error") {
-    return "Network error — check that VITE_API_URL points at your API and it is reachable.";
+  const d = err.response?.data;
+
+  if (typeof d === "string" && d.trim() && !looksLikeHtmlOrServerDump(d)) {
+    if (st === 403) return "You can't remove this message.";
+    if (st === 404) return "This message isn't available anymore. Try refreshing the list.";
+    const short = d.length > 120 ? `${d.slice(0, 117)}…` : d;
+    return short;
   }
-  return st ? `Could not delete (HTTP ${st}).` : "Could not delete this message.";
+  if (d && typeof d === "object" && typeof d.message === "string" && d.message.trim()) {
+    const msg = d.message.trim();
+    if (looksLikeHtmlOrServerDump(msg)) {
+      return "We couldn't remove that message right now. Please try again in a moment.";
+    }
+    if (msg.length > 120) return `${msg.slice(0, 117)}…`;
+    if (st === 403) return "You can't remove this message.";
+    if (st === 404) return "This message isn't available anymore. Try refreshing the list.";
+    return msg;
+  }
+  if (typeof d === "string" && d.trim()) {
+    return "We couldn't remove that message right now. Please try again in a moment.";
+  }
+
+  if (st === 401) return "Your session expired. Please sign in again.";
+  if (st === 403) return "You can't remove this message.";
+  if (st === 404) return "This message isn't available anymore. Try refreshing the list.";
+  if (err.message === "Network Error") {
+    return "Can't reach the server. Check your connection and try again.";
+  }
+  return "We couldn't remove that message right now. Please try again in a moment.";
 }
 
 const Messages = () => {
@@ -188,7 +212,7 @@ const Messages = () => {
     const id = messageMongoId(msg);
     if (!id || !/^[a-f0-9]{24}$/i.test(id)) {
       setConfirmDeleteMsg(null);
-      setDeleteNotice("This message has no valid id. Refresh the page.");
+      setDeleteNotice("Something went wrong. Refresh the page and try again.");
       return;
     }
     const projectId = String(selectedProject._id);
@@ -284,11 +308,27 @@ const Messages = () => {
     deleteBanner: {
       padding: "10px 24px",
       fontSize: 13,
-      fontWeight: 600,
-      color: "#991b1b",
-      background: "#fee2e2",
+      fontWeight: 500,
+      color: m.text,
+      background: `${a.color}12`,
       borderBottom: `1px solid ${m.cardBorder}`,
-      borderLeft: "3px solid #dc2626",
+      borderLeft: `3px solid ${a.color}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    deleteBannerDismiss: {
+      flexShrink: 0,
+      border: "none",
+      background: "transparent",
+      color: m.textMuted,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: "pointer",
+      padding: "4px 8px",
+      borderRadius: 6,
+      fontFamily: "'DM Sans', sans-serif",
     },
     messages: {
       flex: 1, padding: "20px 24px", overflowY: "auto",
@@ -412,7 +452,14 @@ const Messages = () => {
               </div>
               {deleteNotice ? (
                 <div role="status" style={s.deleteBanner}>
-                  {deleteNotice}
+                  <span>{deleteNotice}</span>
+                  <button
+                    type="button"
+                    style={s.deleteBannerDismiss}
+                    onClick={() => setDeleteNotice("")}
+                  >
+                    Dismiss
+                  </button>
                 </div>
               ) : null}
               <div style={s.messages}>
