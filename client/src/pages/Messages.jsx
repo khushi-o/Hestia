@@ -229,12 +229,11 @@ const Messages = () => {
     }),
     msgName: { fontSize: 10, color: m.textMuted, marginBottom: 4, fontWeight: 600 },
     msgTime: { fontSize: 10, opacity: 0.5, marginTop: 4, textAlign: "right" },
-    msgMetaRow: (me) => ({
+    msgMetaRow: {
       display: "flex",
       alignItems: "center",
       gap: 6,
-      flexDirection: me ? "row-reverse" : "row",
-    }),
+    },
     msgDeleteBtn: {
       flexShrink: 0,
       display: "flex",
@@ -342,7 +341,7 @@ const Messages = () => {
                       )}
                       <div>
                         {!isMe(msg) && <div style={s.msgName}>{msg.senderName}</div>}
-                        <div style={s.msgMetaRow(isMe(msg))}>
+                        <div style={s.msgMetaRow}>
                           {isMe(msg) && msg._id && (
                             <button
                               type="button"
