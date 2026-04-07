@@ -32,7 +32,13 @@ async function start() {
   io.use(socketAuthMiddleware);
   app.set("io", io);
 
-  app.use(cors({ origin: corsOrigins }));
+  app.use(
+    cors({
+      origin: corsOrigins,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
   app.use(express.json());
 
   app.use("/api/auth", require("./routes/auth.routes"));

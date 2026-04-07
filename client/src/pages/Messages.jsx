@@ -10,6 +10,51 @@ import EmptyState from "../components/EmptyState";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import { getSocketUrl } from "../config/env.js";
 
+function dedupeMessagesById(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of list) {
+    const id = m._id == null ? null : String(m._id);
+    if (!id) {
+      out.push(m);
+      continue;
+    }
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(m);
+  }
+  return out;
+}
+
+function messageMongoId(msg) {
+  if (!msg || msg._id == null) return "";
+  const id = msg._id;
+  if (typeof id === "object" && typeof id.toHexString === "function") {
+    return id.toHexString();
+  }
+  return String(id);
+}
+
+function formatDeleteError(err) {
+  const d = err.response?.data;
+  if (typeof d === "string" && d.trim()) return d;
+  if (d && typeof d === "object" && typeof d.message === "string" && d.message.trim()) {
+    return d.message;
+  }
+  const st = err.response?.status;
+  if (st === 401) return "Session expired. Log in again.";
+  if (st === 403) return "You can only delete your own messages.";
+  if (st === 404)
+    return "Message not found — refresh the page. If you just deployed the API, wait for it to finish rolling out.";
+  if (st === 405)
+    return "This server does not allow deleting messages (HTTP 405). Deploy the latest API version.";
+  if (err.message === "Network Error") {
+    return "Network error — check that VITE_API_URL points at your API and it is reachable.";
+  }
+  return st ? `Could not delete (HTTP ${st}).` : "Could not delete this message.";
+}
+
 const Messages = () => {
   const user   = useAuthStore((s) => s.user);
   const token  = useAuthStore((s) => s.token);
@@ -25,6 +70,7 @@ const Messages = () => {
   const [confirmDeleteMsg, setConfirmDeleteMsg] = useState(null);
   const [deleteNotice, setDeleteNotice]     = useState("");
   const bottomRef = useRef(null);
+  const sendingRef = useRef(false);
   const socketRef = useRef(null);
   const joinedRoomRef = useRef(null);
   const selectedProjectRef = useRef(null);
@@ -62,8 +108,8 @@ const Messages = () => {
             : null;
       if (!sp || !pid || pid !== String(sp._id)) return;
       setMessages((prev) => {
-        const id = msg._id != null ? String(msg._id) : null;
-        if (id && prev.some((m) => m._id != null && String(m._id) === id)) {
+        const id = messageMongoId(msg) || null;
+        if (id && prev.some((m) => messageMongoId(m) === id)) {
           return prev;
         }
         return [...prev, msg];
@@ -73,7 +119,7 @@ const Messages = () => {
       const sp = selectedProjectRef.current;
       if (!sp || String(payload.projectId) !== String(sp._id)) return;
       const mid = String(payload.messageId);
-      setMessages((prev) => prev.filter((m) => String(m._id) !== mid));
+      setMessages((prev) => prev.filter((m) => messageMongoId(m) !== mid));
     };
     socket.on("message_deleted", onDeleted);
     return () => {
@@ -109,44 +155,47 @@ const Messages = () => {
     }
     try {
       const res = await API.get(`/messages/${project._id}`);
-      setMessages(res.data);
+      setMessages(dedupeMessagesById(res.data));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
   const sendMessage = async () => {
-    if (!text.trim() || !selectedProject) return;
+    if (!text.trim() || !selectedProject || sendingRef.current) return;
     const body = text.trim();
+    sendingRef.current = true;
     try {
       await API.post(`/messages/${selectedProject._id}`, { text: body });
       setText("");
     } catch (err) {
       console.error(err);
+    } finally {
+      sendingRef.current = false;
     }
   };
 
   const runConfirmedDelete = async () => {
     const msg = confirmDeleteMsg;
-    if (!msg || !selectedProject || !msg._id) {
+    if (!msg || !selectedProject) {
       setConfirmDeleteMsg(null);
       return;
     }
-    const id = String(msg._id);
+    const id = messageMongoId(msg);
+    if (!id || !/^[a-f0-9]{24}$/i.test(id)) {
+      setConfirmDeleteMsg(null);
+      setDeleteNotice("This message has no valid id. Refresh the page.");
+      return;
+    }
     const projectId = String(selectedProject._id);
     setDeletingId(id);
     setDeleteNotice("");
     try {
       await API.delete(`/messages/${projectId}/${id}`);
-      setMessages((prev) => prev.filter((m) => String(m._id) !== id));
+      setMessages((prev) => prev.filter((m) => messageMongoId(m) !== id));
       setConfirmDeleteMsg(null);
     } catch (err) {
-      const apiMsg =
-        err.response?.data?.message ||
-        (err.message === "Network Error"
-          ? "Cannot reach the server. Check your connection and API URL."
-          : "Could not delete this message.");
       setConfirmDeleteMsg(null);
-      setDeleteNotice(apiMsg);
+      setDeleteNotice(formatDeleteError(err));
       console.error(err);
     } finally {
       setDeletingId(null);
@@ -227,6 +276,15 @@ const Messages = () => {
       lineHeight: 1.3,
     },
     chatHeaderSub: { fontSize: 12, color: m.textMuted, marginLeft: "auto", flexShrink: 0 },
+    deleteBanner: {
+      padding: "10px 24px",
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#991b1b",
+      background: "#fee2e2",
+      borderBottom: `1px solid ${m.cardBorder}`,
+      borderLeft: "3px solid #dc2626",
+    },
     messages: {
       flex: 1, padding: "20px 24px", overflowY: "auto",
       display: "flex", flexDirection: "column", gap: 14,
@@ -348,16 +406,7 @@ const Messages = () => {
                 <div style={s.chatHeaderSub}>{messages.length} messages</div>
               </div>
               {deleteNotice ? (
-                <div
-                  role="status"
-                  style={{
-                    padding: "10px 24px",
-                    fontSize: 13,
-                    color: "#fecaca",
-                    background: "rgba(220,38,38,0.15)",
-                    borderBottom: `1px solid ${m.cardBorder}`,
-                  }}
-                >
+                <div role="status" style={s.deleteBanner}>
                   {deleteNotice}
                 </div>
               ) : null}
@@ -371,7 +420,7 @@ const Messages = () => {
                 ) : (
                   messages.map((msg, i) => (
                     <div
-                      key={msg._id != null ? String(msg._id) : `msg-${i}`}
+                      key={messageMongoId(msg) || `msg-${i}`}
                       style={s.msgRow(isMe(msg))}
                     >
                       {!isMe(msg) && (
@@ -380,15 +429,15 @@ const Messages = () => {
                       <div>
                         {!isMe(msg) && <div style={s.msgName}>{msg.senderName}</div>}
                         <div style={s.msgMetaRow}>
-                          {isMe(msg) && msg._id && (
+                          {isMe(msg) && messageMongoId(msg) && (
                             <button
                               type="button"
                               title="Delete message"
                               aria-label="Delete message"
-                              disabled={deletingId === String(msg._id)}
+                              disabled={deletingId === messageMongoId(msg)}
                               style={{
                                 ...s.msgDeleteBtn,
-                                opacity: deletingId === String(msg._id) ? 0.5 : 1,
+                                opacity: deletingId === messageMongoId(msg) ? 0.5 : 1,
                               }}
                               onClick={() => {
                                 setDeleteNotice("");
