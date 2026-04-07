@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import useAuthStore from "../store/authStore";
 
-/** Set in `server/scripts/seed-demo.js` — run seed after deploy for instant trials. */
+/** Set in `server/scripts/seed-demo.js`. Shown only in dev or when `VITE_SHOW_DEMO_LOGIN=true` at build time. */
 const DEMO_AGENCY = {
   email: "demo@hestia.app",
   password: "Demo123!",
@@ -13,6 +13,9 @@ const DEMO_CLIENT = {
   email: "client@hestia.app",
   password: "Demo123!",
 };
+
+const showDemoShortcuts =
+  import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_LOGIN === "true";
 
 const C = {
   bg:        "#F9F7F2",
@@ -38,15 +41,19 @@ const Login = () => {
       login(res.data);
       navigate("/dashboard");
     } catch (err) {
-      const msg =
-        err.response?.data?.message || "Login failed";
+      const raw = err.response?.data?.message || "";
+      const msg = String(raw).trim() || "Login failed";
       const email = (data.email || "").trim().toLowerCase();
-      const demoSeedEmails =
+      const isDemoEmail =
         email === "demo@hestia.app" || email === "client@hestia.app";
-      if (msg === "Invalid credentials" && demoSeedEmails) {
-        setLoginError(
-          "Demo users are not in the database your API is using. Run npm run seed:demo from the server folder with the same MONGO_URI as production (Railway/Render/etc.), then try again — or create a new account with Register."
-        );
+      if (msg === "Invalid credentials") {
+        if (showDemoShortcuts && isDemoEmail) {
+          setLoginError(
+            "That preview account isn’t available on this site. Create an account below, or check your email and password."
+          );
+        } else {
+          setLoginError("Invalid email or password.");
+        }
       } else {
         setLoginError(msg);
       }
@@ -96,31 +103,33 @@ const Login = () => {
             <div style={s.subtitle}>Sign in to your workspace</div>
           </div>
 
-          <div style={s.demoBox}>
-            <div style={s.demoTitle}>Try the demo</div>
-            <div style={s.demoRow}>
-              <button
-                type="button"
-                style={s.demoBtn}
-                onClick={() => {
-                  setValue("email", DEMO_AGENCY.email);
-                  setValue("password", DEMO_AGENCY.password);
-                }}
-              >
-                Freelancer account
-              </button>
-              <button
-                type="button"
-                style={s.demoBtn}
-                onClick={() => {
-                  setValue("email", DEMO_CLIENT.email);
-                  setValue("password", DEMO_CLIENT.password);
-                }}
-              >
-                Client portal
-              </button>
+          {showDemoShortcuts ? (
+            <div style={s.demoBox}>
+              <div style={s.demoTitle}>Try the demo</div>
+              <div style={s.demoRow}>
+                <button
+                  type="button"
+                  style={s.demoBtn}
+                  onClick={() => {
+                    setValue("email", DEMO_AGENCY.email);
+                    setValue("password", DEMO_AGENCY.password);
+                  }}
+                >
+                  Freelancer account
+                </button>
+                <button
+                  type="button"
+                  style={s.demoBtn}
+                  onClick={() => {
+                    setValue("email", DEMO_CLIENT.email);
+                    setValue("password", DEMO_CLIENT.password);
+                  }}
+                >
+                  Client portal
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <form onSubmit={handleSubmit(onSubmit)} style={s.form}>
             <div style={s.fieldGroup}>

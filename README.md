@@ -83,6 +83,7 @@ docs/            # Optional architecture notes
 | -------- | ------- |
 | `VITE_API_URL` | e.g. `http://localhost:5000/api` |
 | `VITE_SOCKET_URL` | Optional Socket.io origin |
+| `VITE_SHOW_DEMO_LOGIN` | Optional; set to `true` on Vercel **only if** demo users exist in prod DB. Local dev shows demo shortcuts without this. |
 
 ## Local development
 
@@ -107,7 +108,7 @@ npm run dev
 ## Production deploy
 
 1. Deploy **server** (Railway, Render, etc.): set `MONGO_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`.  
-2. Deploy **client** (Vercel, etc.): set `VITE_API_URL` / `VITE_SOCKET_URL` at build time.  
+2. Deploy **client** (Vercel, etc.): set `VITE_API_URL` / `VITE_SOCKET_URL` at build time. The login **Try the demo** block is **off** in production unless you set `VITE_SHOW_DEMO_LOGIN=true` (use only after running `npm run seed:demo` against that API’s MongoDB).  
 3. Run **`npm run seed:demo`** once with **the same `MONGO_URI`** your deployed API uses **only if** you want public demo logins (`demo@hestia.app` / `client@hestia.app`). Until you do, those buttons on the login page will fail with invalid credentials (optional; rotate or remove demo users for real productions).
 
 `client/vercel.json` includes SPA rewrites so client-side routes work on refresh.
