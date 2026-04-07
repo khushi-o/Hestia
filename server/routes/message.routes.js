@@ -44,6 +44,15 @@ router.post("/:projectId", requireProjectOwner, async (req, res) => {
       text,
     });
 
+    const io = req.app.get("io");
+    if (io) {
+      const doc = message.toObject();
+      io.to(String(req.params.projectId)).emit("receive_message", {
+        ...doc,
+        projectId: String(req.params.projectId),
+      });
+    }
+
     const project = await Project.findById(req.params.projectId);
     if (project && project.owner.toString() !== req.user._id.toString()) {
       await Notification.create({

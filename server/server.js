@@ -30,6 +30,7 @@ async function start() {
   });
 
   io.use(socketAuthMiddleware);
+  app.set("io", io);
 
   app.use(cors({ origin: corsOrigins }));
   app.use(express.json());
@@ -57,17 +58,6 @@ async function start() {
       const ok = await userOwnsProject(socket.user._id, projectId);
       if (ok) socket.join(String(projectId));
       if (typeof cb === "function") cb({ ok });
-    });
-
-    socket.on("send_message", async (data, cb) => {
-      const projectId = data?.projectId;
-      const ok = await userOwnsProject(socket.user._id, projectId);
-      if (!ok) {
-        if (typeof cb === "function") cb({ ok: false });
-        return;
-      }
-      io.to(String(projectId)).emit("receive_message", data);
-      if (typeof cb === "function") cb({ ok: true });
     });
 
     socket.on("disconnect", () => {});

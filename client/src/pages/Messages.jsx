@@ -49,9 +49,20 @@ const Messages = () => {
     socket.on("connect", joinSelectedRoom);
     socket.on("receive_message", (msg) => {
       const sp = selectedProjectRef.current;
-      const pid = msg.projectId != null ? String(msg.projectId) : null;
+      const pid =
+        msg.projectId != null
+          ? String(msg.projectId)
+          : msg.project != null
+            ? String(msg.project)
+            : null;
       if (!sp || !pid || pid !== String(sp._id)) return;
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        const id = msg._id != null ? String(msg._id) : null;
+        if (id && prev.some((m) => m._id != null && String(m._id) === id)) {
+          return prev;
+        }
+        return [...prev, msg];
+      });
     });
     return () => {
       socket.off("connect", joinSelectedRoom);
@@ -95,25 +106,24 @@ const Messages = () => {
 
   const sendMessage = async () => {
     if (!text.trim() || !selectedProject) return;
-    const msg = {
-      projectId: selectedProject._id,
-      text: text.trim(),
-      senderName: user?.name,
-      sender: user?._id,
-      createdAt: new Date().toISOString(),
-    };
-    socketRef.current?.emit("send_message", msg);
+    const body = text.trim();
     try {
-      await API.post(`/messages/${selectedProject._id}`, { text: text.trim() });
-    } catch (err) { console.error(err); }
-    setText("");
+      await API.post(`/messages/${selectedProject._id}`, { text: body });
+      setText("");
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const isMe = (msg) => msg.sender === user?._id || msg.senderName === user?.name;
+  const isMe = (msg) =>
+    (msg.sender != null &&
+      user?._id != null &&
+      String(msg.sender) === String(user._id)) ||
+    (msg.senderName && user?.name && msg.senderName === user.name);
   const formatTime = (date) => new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const s = {
@@ -163,7 +173,13 @@ const Messages = () => {
       fontFamily: "'Syne', sans-serif", fontSize: 15,
       fontWeight: 700, color: m.text,
     },
-    chatHeaderSub: { fontSize: 12, color: m.textMuted, marginLeft: "auto" },
+    chatHeaderCaption: {
+      fontSize: 11,
+      color: m.textMuted,
+      marginTop: 4,
+      lineHeight: 1.3,
+    },
+    chatHeaderSub: { fontSize: 12, color: m.textMuted, marginLeft: "auto", flexShrink: 0 },
     messages: {
       flex: 1, padding: "20px 24px", overflowY: "auto",
       display: "flex", flexDirection: "column", gap: 14,
@@ -213,7 +229,7 @@ const Messages = () => {
     <Layout>
       <div style={s.wrapper}>
         <div style={s.projectList}>
-          <div style={s.projectListHeader}>💬 Conversations</div>
+          <div style={s.projectListHeader}>💬 Project chats</div>
           {projects.length === 0 ? (
             <div style={{ padding: 20, fontSize: 12, color: m.textMuted }}>
               No projects yet.{" "}
@@ -247,14 +263,19 @@ const Messages = () => {
           {!selectedProject ? (
             <EmptyState
               icon="📨"
-              title="Select a conversation"
-              subtitle="Choose a project from the left to start chatting"
+              title="Select a project"
+              subtitle="Each thread is tied to a project, not a contact name"
             />
           ) : (
             <>
               <div style={s.chatHeader}>
                 <div style={s.chatHeaderDot}></div>
-                <div style={s.chatHeaderTitle}>{selectedProject.name}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={s.chatHeaderTitle}>{selectedProject.name}</div>
+                  <div style={s.chatHeaderCaption}>
+                    Project message thread (your notes for this job)
+                  </div>
+                </div>
                 <div style={s.chatHeaderSub}>{messages.length} messages</div>
               </div>
               <div style={s.messages}>
@@ -266,7 +287,10 @@ const Messages = () => {
                   <EmptyState icon="👋" title="No messages yet" subtitle="Be the first to say something!" />
                 ) : (
                   messages.map((msg, i) => (
-                    <div key={i} style={s.msgRow(isMe(msg))}>
+                    <div
+                      key={msg._id != null ? String(msg._id) : `msg-${i}`}
+                      style={s.msgRow(isMe(msg))}
+                    >
                       {!isMe(msg) && (
                         <div style={s.msgAvatar}>{msg.senderName?.[0]?.toUpperCase()}</div>
                       )}
