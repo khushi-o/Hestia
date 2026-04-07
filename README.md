@@ -57,6 +57,8 @@ npm install
 npm run seed:demo
 ```
 
+On **Windows**, if seed fails with `querySrv ECONNREFUSED`, the seed script applies the same DNS workaround as the API (Google/Cloudflare resolvers). You can also set `DNS_SERVERS=8.8.8.8,1.1.1.1` in `server/.env`. Easiest fallback: run the seed from **Railway’s shell** (uses the host network, no local DNS issue).
+
 3. Log in from the **login** screen using **Try the demo**:
 
 | Role | Email | Password |
