@@ -38,7 +38,12 @@ function messageMongoId(msg) {
 
 function formatDeleteError(err) {
   const d = err.response?.data;
-  if (typeof d === "string" && d.trim()) return d;
+  if (typeof d === "string" && d.trim()) {
+    if (d.includes("Cannot DELETE") || d.includes("<!DOCTYPE")) {
+      return "This API does not support deleting messages yet. Redeploy your backend (Railway/Render) from the latest main branch, then try again.";
+    }
+    return d;
+  }
   if (d && typeof d === "object" && typeof d.message === "string" && d.message.trim()) {
     return d.message;
   }
