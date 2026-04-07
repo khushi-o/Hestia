@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import { Trash2 } from "lucide-react";
 import API from "../api/axios";
 import useAuthStore from "../store/authStore";
 import { accents, modes } from "../theme";
@@ -19,6 +20,7 @@ const Messages = () => {
   const [messages, setMessages]               = useState([]);
   const [text, setText]                       = useState("");
   const [loading, setLoading]                 = useState(false);
+  const [deletingId, setDeletingId]           = useState(null);
   const bottomRef = useRef(null);
   const socketRef = useRef(null);
   const joinedRoomRef = useRef(null);
@@ -64,9 +66,17 @@ const Messages = () => {
         return [...prev, msg];
       });
     });
+    const onDeleted = (payload) => {
+      const sp = selectedProjectRef.current;
+      if (!sp || String(payload.projectId) !== String(sp._id)) return;
+      const mid = String(payload.messageId);
+      setMessages((prev) => prev.filter((m) => String(m._id) !== mid));
+    };
+    socket.on("message_deleted", onDeleted);
     return () => {
       socket.off("connect", joinSelectedRoom);
       socket.off("receive_message");
+      socket.off("message_deleted", onDeleted);
       socket.disconnect();
       socketRef.current = null;
       joinedRoomRef.current = null;
@@ -112,6 +122,21 @@ const Messages = () => {
       setText("");
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const deleteMessage = async (msg) => {
+    if (!selectedProject || !msg._id) return;
+    if (!window.confirm("Delete this message? This cannot be undone.")) return;
+    const id = String(msg._id);
+    setDeletingId(id);
+    try {
+      await API.delete(`/messages/${selectedProject._id}/${id}`);
+      setMessages((prev) => prev.filter((m) => String(m._id) !== id));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -204,6 +229,27 @@ const Messages = () => {
     }),
     msgName: { fontSize: 10, color: m.textMuted, marginBottom: 4, fontWeight: 600 },
     msgTime: { fontSize: 10, opacity: 0.5, marginTop: 4, textAlign: "right" },
+    msgMetaRow: (me) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      flexDirection: me ? "row-reverse" : "row",
+    }),
+    msgDeleteBtn: {
+      flexShrink: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      border: `1px solid ${m.cardBorder}`,
+      background: m.card,
+      color: m.textMuted,
+      cursor: "pointer",
+      padding: 0,
+      transition: "all 0.15s",
+    },
     inputArea: {
       padding: "16px 24px", borderTop: `1px solid ${m.cardBorder}`,
       background: m.topbar, display: "flex", gap: 10,
@@ -296,9 +342,34 @@ const Messages = () => {
                       )}
                       <div>
                         {!isMe(msg) && <div style={s.msgName}>{msg.senderName}</div>}
-                        <div style={s.msgBubble(isMe(msg))}>
-                          {msg.text}
-                          <div style={s.msgTime}>{formatTime(msg.createdAt)}</div>
+                        <div style={s.msgMetaRow(isMe(msg))}>
+                          {isMe(msg) && msg._id && (
+                            <button
+                              type="button"
+                              title="Delete message"
+                              aria-label="Delete message"
+                              disabled={deletingId === String(msg._id)}
+                              style={{
+                                ...s.msgDeleteBtn,
+                                opacity: deletingId === String(msg._id) ? 0.5 : 1,
+                              }}
+                              onClick={() => deleteMessage(msg)}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = "#f87171";
+                                e.currentTarget.style.borderColor = "rgba(248,113,113,0.35)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = m.textMuted;
+                                e.currentTarget.style.borderColor = m.cardBorder;
+                              }}
+                            >
+                              <Trash2 size={14} strokeWidth={2} aria-hidden />
+                            </button>
+                          )}
+                          <div style={s.msgBubble(isMe(msg))}>
+                            {msg.text}
+                            <div style={s.msgTime}>{formatTime(msg.createdAt)}</div>
+                          </div>
                         </div>
                       </div>
                     </div>

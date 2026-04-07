@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const Message = require("../models/message.model");
 const { protect } = require("../middleware/auth.middleware");
@@ -9,6 +10,46 @@ const Project = require("../models/project.model");
 const MAX_MESSAGE_LEN = 5000;
 
 router.use(protect);
+
+router.delete(
+  "/:projectId/:messageId",
+  requireProjectOwner,
+  async (req, res) => {
+    try {
+      const { projectId, messageId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(messageId)) {
+        return res.status(400).json({ message: "Invalid message id" });
+      }
+      const message = await Message.findOne({
+        _id: messageId,
+        project: projectId,
+      });
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      if (message.sender.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: "You can only delete your own messages" });
+      }
+      await Message.deleteOne({ _id: message._id });
+
+      const io = req.app.get("io");
+      if (io) {
+        io.to(String(projectId)).emit("message_deleted", {
+          messageId: String(message._id),
+          projectId: String(projectId),
+        });
+      }
+
+      res.json({ ok: true });
+    } catch (error) {
+      const msg =
+        process.env.NODE_ENV === "production"
+          ? "Something went wrong"
+          : error.message;
+      res.status(500).json({ message: msg });
+    }
+  }
+);
 
 router.get("/:projectId", requireProjectOwner, async (req, res) => {
   try {

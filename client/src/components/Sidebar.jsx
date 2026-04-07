@@ -1,5 +1,17 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  FileText,
+  MessageSquare,
+  FolderOpen,
+  Bell,
+  Settings,
+  Search,
+  LogOut,
+} from "lucide-react";
 import API from "../api/axios";
 import useAuthStore from "../store/authStore";
 import { accents, modes } from "../theme";
@@ -9,14 +21,14 @@ const W_EXPANDED = 220;
 const W_COLLAPSED = 72;
 
 const NAV = [
-  ["Dashboard",     "📊", "/dashboard"],
-  ["Projects",      "🗂️", "/projects"],
-  ["Clients",       "🤝", "/clients"],
-  ["Invoices",      "🧾", "/invoices"],
-  ["Messages",      "📨", "/messages"],
-  ["Files",         "🗃️", "/files"],
-  ["Notifications", "📬", "/notifications"],
-  ["Settings",      "🎛️", "/profile"],
+  { label: "Dashboard", Icon: LayoutDashboard, path: "/dashboard" },
+  { label: "Projects", Icon: FolderKanban, path: "/projects" },
+  { label: "Clients", Icon: Users, path: "/clients" },
+  { label: "Invoices", Icon: FileText, path: "/invoices" },
+  { label: "Messages", Icon: MessageSquare, path: "/messages" },
+  { label: "Files", Icon: FolderOpen, path: "/files" },
+  { label: "Notifications", Icon: Bell, path: "/notifications" },
+  { label: "Settings", Icon: Settings, path: "/profile" },
 ];
 
 const Sidebar = () => {
@@ -146,8 +158,8 @@ const Sidebar = () => {
     navItem: (active) => ({
       display: "flex",
       alignItems: "center",
-      gap: collapsed ? 0 : 10,
-      padding: collapsed ? "10px 8px" : "10px 12px",
+      gap: collapsed ? 0 : 12,
+      padding: collapsed ? "10px 8px" : "10px 14px",
       margin: "1px 8px",
       borderRadius: 8,
       fontSize: 13,
@@ -158,15 +170,6 @@ const Sidebar = () => {
       fontWeight: active ? 500 : 400,
       justifyContent: collapsed ? "center" : "flex-start",
       position: "relative",
-    }),
-    navDot: (active) => ({
-      width: 6,
-      height: 6,
-      borderRadius: "50%",
-      flexShrink: 0,
-      background: active ? a.color : m.textMuted,
-      boxShadow: active ? `0 0 8px ${a.color}` : "none",
-      transition: "all 0.2s ease",
     }),
     badge: {
       marginLeft: "auto",
@@ -199,8 +202,8 @@ const Sidebar = () => {
     logoutNavBtn: {
       display: "flex",
       alignItems: "center",
-      gap: collapsed ? 0 : 10,
-      padding: collapsed ? "10px 8px" : "10px 12px",
+      gap: collapsed ? 0 : 12,
+      padding: collapsed ? "10px 8px" : "10px 14px",
       margin: "1px 8px",
       borderRadius: 8,
       fontSize: 13,
@@ -216,6 +219,8 @@ const Sidebar = () => {
       transition: "all 0.2s",
     },
   };
+
+  const iconColor = (active) => (active ? a.color : m.textMuted);
 
   return (
     <div style={s.sidebar}>
@@ -284,8 +289,7 @@ const Sidebar = () => {
             e.currentTarget.style.background = "transparent";
           }}
         >
-          {!collapsed && <div style={s.navDot(false)} />}
-          <span style={{ fontSize: 15 }} aria-hidden>🔍</span>
+          <Search size={18} strokeWidth={2} color={m.textMuted} aria-hidden />
           {!collapsed && (
             <>
               <span>Search</span>
@@ -303,7 +307,7 @@ const Sidebar = () => {
           )}
         </div>
 
-        {NAV.map(([label, icon, path]) => {
+        {NAV.map(({ label, Icon, path }) => {
           const active = location.pathname === path;
           return (
             <div
@@ -326,8 +330,7 @@ const Sidebar = () => {
                   }
                 }}
               >
-                {!collapsed && <div style={s.navDot(active)} />}
-                <span style={{ fontSize: 15 }} aria-hidden>{icon}</span>
+                <Icon size={18} strokeWidth={2} color={iconColor(active)} aria-hidden />
                 {!collapsed && (
                   <>
                     <span>{label}</span>
@@ -361,12 +364,7 @@ const Sidebar = () => {
             e.currentTarget.style.borderColor = "transparent";
           }}
         >
-          {!collapsed && <div style={s.navDot(false)} />}
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
+          <LogOut size={18} strokeWidth={2} color="#f87171" aria-hidden />
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
