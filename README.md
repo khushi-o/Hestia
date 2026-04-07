@@ -18,15 +18,33 @@ Stack: **React (Vite)** + **Node (Express)** + **MongoDB** + **Socket.io**.
 
 **Realtime:** Messages are saved with `POST /api/messages/:projectId`, then broadcast as `receive_message`. **`join_project`** allows access if the user **owns** the project **or** is listed in `project.clients`.
 
-## Screenshots (add your own)
+## Screenshots
 
-Place images under `docs/screenshots/` (not committed if you prefer) and link them here for your portfolio README:
+Each preview links to the image file in [`docs/Screenshots/`](docs/Screenshots/).
 
-1. `docs/screenshots/01-landing.png` — Landing page  
-2. `docs/screenshots/02-dashboard-agency.png` — Agency dashboard  
-3. `docs/screenshots/03-dashboard-client.png` — Client portal dashboard  
-4. `docs/screenshots/04-messages.png` — Shared project thread  
-5. `docs/screenshots/05-invoices.png` — Invoice list / PDF  
+### Landing page
+
+[![Landing page](docs/Screenshots/Landing%20Page.png)](docs/Screenshots/Landing%20Page.png)
+
+### Agency dashboard
+
+[![Agency dashboard](docs/Screenshots/Agency%20Dashboard.png)](docs/Screenshots/Agency%20Dashboard.png)
+
+### Client portal dashboard
+
+[![Client portal dashboard](docs/Screenshots/Client%20Portal%20Dashboard.png)](docs/Screenshots/Client%20Portal%20Dashboard.png)
+
+### Messages
+
+[![Messages](docs/Screenshots/Messages.png)](docs/Screenshots/Messages.png)
+
+### Invoices
+
+[![Invoices](docs/Screenshots/Invoice.png)](docs/Screenshots/Invoice.png)
+
+### Invoice PDF
+
+[![Invoice PDF](docs/Screenshots/PDF.png)](docs/Screenshots/PDF.png)
 
 ## Try the demo (local or hosted)
 
