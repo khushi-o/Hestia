@@ -1,6 +1,6 @@
 # Hestia
 
-Hestia is a client portal SaaS for freelancers and agencies — manage projects, send invoices, share files, and communicate with clients in one workspace. Built with React, Node.js, MongoDB, and Socket.io.
+Hestia is a **client portal SaaS** for freelancers and agencies — manage projects, send invoices, share files, and communicate with clients in one workspace. Built with **React**, **Node.js**, **MongoDB**, and **Socket.io**.
 
 Stack: **React (Vite)** + **Node (Express)** + **MongoDB** + **Socket.io**.
 
