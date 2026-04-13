@@ -151,4 +151,4 @@ JWT on REST and sockets, project scoping via **`requireProjectAccess`** (owner o
 
 ## License
 
-MIT License
+[MIT](./LICENSE). 
